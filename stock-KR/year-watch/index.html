@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>종목 1년 시세</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #141a2e;
+      --line: #242c44;
+      --text: #e8edf8;
+      --muted: #8b96b0;
+      --up: #f04343;
+      --down: #3b82f6;
+      --flat: #8b96b0;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 28px 20px 72px;
+    }
+
+    header h1 {
+      font-size: 26px;
+      letter-spacing: -0.04em;
+      font-weight: 700;
+    }
+
+    header p {
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 14px;
+    }
+
+    .search {
+      margin: 22px 0 18px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .inputs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .fields {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      flex: 1;
+    }
+
+    .field {
+      display: flex;
+      flex: 1 1 160px;
+      min-width: 140px;
+      max-width: 220px;
+    }
+
+    .inputs input {
+      width: 100%;
+      background: #0f1528;
+      border: 1px solid var(--line);
+      border-right: 0;
+      color: var(--text);
+      border-radius: 8px 0 0 8px;
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 14px;
+    }
+
+    .inputs input:focus {
+      outline: 1px solid #3d4a6d;
+      position: relative;
+      z-index: 1;
+    }
+
+    button.remove {
+      background: #1c243c;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 0 8px 8px 0;
+      padding: 0 10px;
+      cursor: pointer;
+      font: inherit;
+      font-size: 16px;
+      line-height: 1;
+    }
+
+    button.remove:hover { color: var(--up); }
+
+    .card button.remove {
+      border-radius: 8px;
+      padding: 2px 8px;
+      border: 0;
+      background: transparent;
+      font-size: 18px;
+    }
+
+    button.go, button.mode, button.add {
+      background: #1c243c;
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    button.go {
+      background: #d4a017;
+      color: #1a1406;
+      border-color: #d4a017;
+      font-weight: 700;
+    }
+
+    button.add:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status.error { color: var(--up); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 15px;
+      border-top: 3px solid var(--line);
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .card .name { font-weight: 700; font-size: 15px; }
+    .card .code { color: var(--muted); font-size: 12px; margin: 3px 0 10px; }
+    .card .price { font-size: 20px; font-weight: 700; letter-spacing: -0.03em; }
+    .card .chg { margin-top: 4px; font-size: 13px; }
+    .card .stat {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .up { color: var(--up); }
+    .down { color: var(--down); }
+    .flat { color: var(--flat); }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 18px 10px;
+      margin-bottom: 16px;
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .panel-head h2 { font-size: 16px; font-weight: 700; }
+    .modes { display: flex; gap: 6px; }
+    button.mode.active {
+      background: #2a3554;
+      border-color: #4a5573;
+    }
+
+    .chart-box { position: relative; height: 380px; }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--panel);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+    }
+
+    th {
+      text-align: right;
+      color: var(--muted);
+      font-size: 12px;
+      background: #101628;
+      position: sticky;
+      top: 0;
+    }
+
+    th.left, td.left { text-align: left; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    tr:last-child td { border-bottom: 0; }
+
+    @media (max-width: 980px) {
+      .field { max-width: none; }
+      button.go { width: 100%; }
+    }
+
+    @media (max-width: 640px) {
+      .chart-box { height: 280px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>종목 1년 시세</h1>
+      <p>기본 3개에 종목을 7개까지 더 넣을 수 있습니다. ×로 빼면 그 칸은 카드·그래프·표에서 함께 빠집니다.</p>
+    </header>
+
+    <form class="search" id="form">
+      <div class="inputs">
+        <div class="fields" id="fields">
+          <div class="field">
+            <input name="q" value="삼성전자" placeholder="종목명 또는 코드" />
+            <button class="remove" type="button" aria-label="종목 삭제">×</button>
+          </div>
+          <div class="field">
+            <input name="q" value="한화오션" placeholder="종목명 또는 코드" />
+            <button class="remove" type="button" aria-label="종목 삭제">×</button>
+          </div>
+          <div class="field">
+            <input name="q" value="HD현대일렉트릭" placeholder="종목명 또는 코드" />
+            <button class="remove" type="button" aria-label="종목 삭제">×</button>
+          </div>
+        </div>
+        <button class="add" type="button" id="addBtn">종목 추가</button>
+        <button class="go" type="submit">1년 시세 보기</button>
+      </div>
+      <div class="status" id="status">종목을 확인한 뒤 최근 1년 시세를 불러옵니다.</div>
+    </form>
+
+    <section class="cards" id="cards" hidden></section>
+
+    <section class="panel" id="chartPanel" hidden>
+      <div class="panel-head">
+        <h2 id="chartTitle">최근 1년 종가</h2>
+        <div class="modes">
+          <button class="mode active" type="button" data-mode="price">가격(원)</button>
+          <button class="mode" type="button" data-mode="return">수익률(%)</button>
+        </div>
+      </div>
+      <div class="chart-box">
+        <canvas id="chart"></canvas>
+      </div>
+    </section>
+
+    <section class="table-wrap" id="tableWrap" hidden>
+      <table>
+        <thead>
+          <tr>
+            <th class="left">종목</th>
+            <th>현재가</th>
+            <th>1년 전</th>
+            <th>등락</th>
+            <th>수익률</th>
+            <th>연중 최고</th>
+            <th>연중 최저</th>
+            <th>평균 종가</th>
+            <th>거래일</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    const SERVICE_KEY = "fe23ae0054fd01c9e77ce4454b41ab421614c1b128781a971de2637ce628a0f8";
+    const ENDPOINT = "https://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoService/getStockPriceInfo";
+    const MAX_STOCKS = 10;
+    const COLORS = ["#f04343", "#5b8def", "#3db88a", "#d4a017", "#c084fc", "#22d3ee", "#fb7185", "#a3e635", "#f97316", "#818cf8"];
+
+    let seriesList = [];
+    let chart = null;
+    let chartMode = "price";
+
+    const $ = (id) => document.getElementById(id);
+
+    function ymd(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return y + m + d;
+    }
+
+    function parseYmd(value) {
+      return new Date(Number(value.slice(0, 4)), Number(value.slice(4, 6)) - 1, Number(value.slice(6, 8)));
+    }
+
+    function shiftYmd(value, years, days) {
+      const date = parseYmd(value);
+      if (years) date.setFullYear(date.getFullYear() + years);
+      if (days) date.setDate(date.getDate() + days);
+      return ymd(date);
+    }
+
+    function formatDate(value) {
+      return value.slice(0, 4) + "." + value.slice(4, 6) + "." + value.slice(6, 8);
+    }
+
+    function formatNum(value) {
+      return Number(value).toLocaleString("ko-KR");
+    }
+
+    function tone(n) {
+      if (n > 0) return "up";
+      if (n < 0) return "down";
+      return "flat";
+    }
+
+    function signedPct(n) {
+      const sign = n > 0 ? "+" : "";
+      return sign + n.toFixed(2) + "%";
+    }
+
+    function signed(n) {
+      const sign = n > 0 ? "+" : "";
+      return sign + formatNum(n);
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function normalizeItems(body) {
+      const raw = body.items && body.items.item;
+      if (!raw) return [];
+      return Array.isArray(raw) ? raw : [raw];
+    }
+
+    async function fetchStock(params) {
+      const url = new URL(ENDPOINT);
+      url.searchParams.set("serviceKey", SERVICE_KEY);
+      url.searchParams.set("resultType", "json");
+      Object.keys(params).forEach((key) => url.searchParams.set(key, params[key]));
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      const header = data.response && data.response.header;
+      if (!header || header.resultCode !== "00") {
+        throw new Error((header && header.resultMsg) || "API 오류");
+      }
+      return data.response.body;
+    }
+
+    async function findLatestDate() {
+      const cursor = new Date();
+      for (let i = 0; i < 14; i += 1) {
+        const date = ymd(cursor);
+        const body = await fetchStock({ numOfRows: "1", pageNo: "1", basDt: date });
+        if (Number(body.totalCount) > 0) return date;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      throw new Error("최근 거래일을 찾지 못했습니다.");
+    }
+
+    async function resolveSymbol(query, latest) {
+      const q = query.trim();
+      const asCode = /^[0-9A-Za-z]{6,9}$/.test(q);
+      let items = [];
+
+      if (asCode) {
+        items = normalizeItems(await fetchStock({ likeSrtnCd: q, basDt: latest, numOfRows: "20" }));
+        const exact = items.find((item) => item.srtnCd === q);
+        if (exact) items = [exact];
+      } else {
+        items = normalizeItems(await fetchStock({ itmsNm: q, basDt: latest, numOfRows: "10" }));
+        if (!items.length) {
+          items = normalizeItems(await fetchStock({ likeItmsNm: q, basDt: latest, numOfRows: "40" }));
+        }
+      }
+
+      if (!items.length) throw new Error("'" + q + "' 종목을 찾지 못했습니다.");
+
+      items.sort((a, b) => {
+        const ae = a.itmsNm === q || a.srtnCd === q ? 0 : 1;
+        const be = b.itmsNm === q || b.srtnCd === q ? 0 : 1;
+        if (ae !== be) return ae - be;
+        return Number(b.mrktTotAmt) - Number(a.mrktTotAmt);
+      });
+      return items[0];
+    }
+
+    async function fetchYear(stock, begin, end) {
+      const body = await fetchStock({
+        likeSrtnCd: stock.srtnCd,
+        beginBasDt: begin,
+        endBasDt: end,
+        numOfRows: "400",
+        pageNo: "1"
+      });
+      const items = normalizeItems(body)
+        .filter((item) => item.srtnCd === stock.srtnCd)
+        .sort((a, b) => a.basDt.localeCompare(b.basDt));
+      if (!items.length) throw new Error(stock.itmsNm + " 1년 시세가 없습니다.");
+      return items;
+    }
+
+    function toSeries(stock, items, color) {
+      const points = items.map((item) => ({
+        date: item.basDt,
+        close: Number(item.clpr)
+      }));
+      const closes = points.map((p) => p.close);
+      const first = closes[0];
+      const last = closes[closes.length - 1];
+      return {
+        name: stock.itmsNm,
+        code: stock.srtnCd,
+        market: stock.mrktCtg,
+        color: color,
+        points: points,
+        last: last,
+        first: first,
+        change: last - first,
+        pct: ((last / first) - 1) * 100,
+        high: Math.max.apply(null, closes),
+        low: Math.min.apply(null, closes),
+        avg: Math.round(closes.reduce((sum, n) => sum + n, 0) / closes.length),
+        days: closes.length,
+        startDate: points[0].date,
+        endDate: points[points.length - 1].date
+      };
+    }
+
+    function renderCards() {
+      $("cards").hidden = seriesList.length === 0;
+      $("cards").innerHTML = seriesList.map((s, index) => (
+        '<article class="card" style="border-top-color:' + s.color + '">' +
+          '<div class="card-top">' +
+            '<div class="name">' + escapeHtml(s.name) + "</div>" +
+            '<button class="remove" type="button" data-index="' + index + '" aria-label="' + escapeHtml(s.name) + ' 삭제">×</button>' +
+          "</div>" +
+          '<div class="code">' + escapeHtml(s.code) + " · " + escapeHtml(s.market) + "</div>" +
+          '<div class="price">' + formatNum(s.last) + "원</div>" +
+          '<div class="chg ' + tone(s.pct) + '">' + signed(s.change) + " · " + signedPct(s.pct) + "</div>" +
+          '<div class="stat">최고 ' + formatNum(s.high) + "원<br />최저 " + formatNum(s.low) + "원<br />" +
+            formatDate(s.startDate) + " ~ " + formatDate(s.endDate) + "</div>" +
+        "</article>"
+      )).join("");
+    }
+
+    function refreshView() {
+      if (!seriesList.length) {
+        $("cards").hidden = true;
+        $("chartPanel").hidden = true;
+        $("tableWrap").hidden = true;
+        if (chart) {
+          chart.destroy();
+          chart = null;
+        }
+        $("status").textContent = "남은 종목이 없습니다. 종목을 입력한 뒤 다시 조회해 주세요.";
+        return;
+      }
+      renderCards();
+      renderTable();
+      drawChart();
+    }
+
+    function removeAt(index) {
+      const fields = $("fields").querySelectorAll(".field");
+      if (fields.length <= 1) {
+        $("status").className = "status error";
+        $("status").textContent = "종목은 최소 1개가 필요합니다.";
+        return;
+      }
+      if (fields[index]) fields[index].remove();
+      if (seriesList[index]) seriesList.splice(index, 1);
+      $("status").className = "status";
+      if (seriesList.length) {
+        $("status").textContent = "선택한 종목을 제외했습니다.";
+      }
+      refreshView();
+      syncAddButton();
+    }
+
+    function fieldCount() {
+      return $("fields").querySelectorAll(".field").length;
+    }
+
+    function syncAddButton() {
+      const left = MAX_STOCKS - fieldCount();
+      $("addBtn").disabled = left <= 0;
+      $("addBtn").textContent = left > 0 ? "종목 추가 (" + left + ")" : "추가 한도 도달";
+    }
+
+    function addField() {
+      if (fieldCount() >= MAX_STOCKS) return;
+      const wrap = document.createElement("div");
+      wrap.className = "field";
+      wrap.innerHTML =
+        '<input name="q" placeholder="종목명 또는 코드" />' +
+        '<button class="remove" type="button" aria-label="종목 삭제">×</button>';
+      $("fields").appendChild(wrap);
+      wrap.querySelector("input").focus();
+      syncAddButton();
+    }
+
+    function renderTable() {
+      $("tableWrap").hidden = false;
+      $("tbody").innerHTML = seriesList.map((s) => (
+        "<tr>" +
+          '<td class="left"><strong>' + escapeHtml(s.name) + "</strong> " + escapeHtml(s.code) + "</td>" +
+          '<td class="num">' + formatNum(s.last) + "</td>" +
+          '<td class="num">' + formatNum(s.first) + "</td>" +
+          '<td class="num ' + tone(s.change) + '">' + signed(s.change) + "</td>" +
+          '<td class="num ' + tone(s.pct) + '">' + signedPct(s.pct) + "</td>" +
+          '<td class="num">' + formatNum(s.high) + "</td>" +
+          '<td class="num">' + formatNum(s.low) + "</td>" +
+          '<td class="num">' + formatNum(s.avg) + "</td>" +
+          '<td class="num">' + formatNum(s.days) + "</td>" +
+        "</tr>"
+      )).join("");
+    }
+
+    function drawChart() {
+      const dates = Array.from(new Set(seriesList.flatMap((s) => s.points.map((p) => p.date)))).sort();
+      const datasets = seriesList.map((s) => {
+        const map = {};
+        s.points.forEach((p) => { map[p.date] = p.close; });
+        return {
+          label: s.name,
+          data: dates.map((d) => {
+            if (map[d] == null) return null;
+            if (chartMode === "return") return Number((((map[d] / s.first) - 1) * 100).toFixed(2));
+            return map[d];
+          }),
+          borderColor: s.color,
+          backgroundColor: "transparent",
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0.15,
+          spanGaps: true
+        };
+      });
+
+      $("chartTitle").textContent = chartMode === "return"
+        ? "최근 1년 수익률 (첫날 대비)"
+        : "최근 1년 종가";
+
+      if (chart) chart.destroy();
+      chart = new Chart($("chart"), {
+        type: "line",
+        data: {
+          labels: dates.map(formatDate),
+          datasets: datasets
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: {
+              labels: { color: "#e8edf8", boxWidth: 12 }
+            },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  const value = ctx.parsed.y;
+                  if (value == null) return ctx.dataset.label + ": -";
+                  return chartMode === "return"
+                    ? ctx.dataset.label + ": " + signedPct(value)
+                    : ctx.dataset.label + ": " + formatNum(value) + "원";
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: { color: "#8b96b0", maxTicksLimit: 8 },
+              grid: { color: "rgba(255,255,255,0.05)" }
+            },
+            y: {
+              ticks: {
+                color: "#8b96b0",
+                callback: function (value) {
+                  return chartMode === "return" ? value + "%" : formatNum(value);
+                }
+              },
+              grid: { color: "rgba(255,255,255,0.05)" }
+            }
+          }
+        }
+      });
+      $("chartPanel").hidden = false;
+    }
+
+    async function load(queries) {
+      $("status").className = "status";
+      $("status").textContent = "최근 거래일과 종목을 확인하는 중입니다.";
+      $("cards").hidden = true;
+      $("chartPanel").hidden = true;
+      $("tableWrap").hidden = true;
+
+      try {
+        const latest = await findLatestDate();
+        const begin = shiftYmd(latest, -1, 0);
+        const end = shiftYmd(latest, 0, 1);
+        $("status").textContent = formatDate(begin) + " ~ " + formatDate(latest) + " 시세를 가져오는 중입니다.";
+
+        const resolved = await Promise.all(queries.map(async (query, index) => {
+          const stock = await resolveSymbol(query, latest);
+          const items = await fetchYear(stock, begin, end);
+          return toSeries(stock, items, COLORS[index]);
+        }));
+
+        const current = collectQueries();
+        seriesList = resolved.filter((s) => current.includes(s.name) || current.includes(s.code));
+        if (!seriesList.length) {
+          $("status").textContent = "표시할 종목이 없습니다.";
+          refreshView();
+          return;
+        }
+        refreshView();
+        $("status").textContent = "정규장 마감 기준 일별 종가입니다. " +
+          formatDate(seriesList[0].startDate) + " ~ " + formatDate(seriesList[0].endDate);
+      } catch (err) {
+        $("status").className = "status error";
+        $("status").textContent = "불러오기 실패: " + err.message;
+      }
+    }
+
+    function collectQueries() {
+      return Array.from($("fields").querySelectorAll("input[name='q']"))
+        .map((el) => el.value.trim())
+        .filter(Boolean);
+    }
+
+    function pruneEmptyFields() {
+      const fields = Array.from($("fields").querySelectorAll(".field"));
+      fields.forEach((field) => {
+        const value = field.querySelector("input").value.trim();
+        if (!value && $("fields").querySelectorAll(".field").length > 1) {
+          field.remove();
+        }
+      });
+    }
+
+    $("addBtn").addEventListener("click", addField);
+
+    $("form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      pruneEmptyFields();
+      syncAddButton();
+      const queries = collectQueries();
+      if (!queries.length) {
+        $("status").className = "status error";
+        $("status").textContent = "종목을 하나 이상 입력해 주세요.";
+        return;
+      }
+      load(queries);
+    });
+
+    $("fields").addEventListener("click", (event) => {
+      const btn = event.target.closest("button.remove");
+      if (!btn) return;
+      const field = btn.closest(".field");
+      const index = Array.from($("fields").children).indexOf(field);
+      removeAt(index);
+    });
+
+    $("cards").addEventListener("click", (event) => {
+      const btn = event.target.closest("button.remove");
+      if (!btn) return;
+      removeAt(Number(btn.dataset.index));
+    });
+
+    document.querySelectorAll("button.mode").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        chartMode = btn.dataset.mode;
+        document.querySelectorAll("button.mode").forEach((el) => el.classList.toggle("active", el === btn));
+        if (seriesList.length) drawChart();
+      });
+    });
+
+    syncAddButton();
+    load(collectQueries());
+  </script>
+</body>
+</html>
